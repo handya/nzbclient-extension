@@ -22,6 +22,16 @@
 # Application token/key
 #AppToken=
 
+# Enable Message Encryption (yes, no).
+#
+# (Optional)
+#EncryptionEnabled=no
+
+# Encryption Private Key
+#
+# (Optional)
+#PrivateKey=
+
 # Send NZB added notification (yes, no).
 #
 # Send NZB added notification
@@ -140,6 +150,11 @@ userkey = os.environ['NZBPO_USERKEY']
 apptoken = os.environ['NZBPO_APPTOKEN']
 device = '' #os.environ['NZBPO_DEVICE']
 command = os.environ.get('NZBCP_COMMAND')
+isEncrypted = os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes'
+
+if (isEncrypted and os.environ['NZBPO_PRIVATEKEY'] is not None):
+    from cryptography.fernet import Fernet
+
 
 # Check par and unpack status for errors and set message
 
@@ -159,6 +174,9 @@ command = os.environ.get('NZBCP_COMMAND')
 
 success=False
 
+def encrypt_string(plaintext, password):
+    return Fernet(password).encrypt(plaintext.encode())
+
 def sendPushNotification(title, message, url=None, sound=None, priority=None):
     # Check if a parameter is None (not provided) and assign a default value if needed
     if url is None:
@@ -168,7 +186,10 @@ def sendPushNotification(title, message, url=None, sound=None, priority=None):
     if priority is None:
         priority = "0"
 
-    # Send message
+    if (isEncrypted and os.environ['NZBPO_PRIVATEKEY'] is not None):
+        privateKey = os.environ['NZBPO_PRIVATEKEY']
+        message = encrypt_string(message, privateKey)
+
     print('[DETAIL] Sending Pushover notification')
     sys.stdout.flush()
     try:
@@ -181,6 +202,7 @@ def sendPushNotification(title, message, url=None, sound=None, priority=None):
             "url": url,
             "sound": sound,
             "priority": priority,
+            "isEncrypted": isEncrypted,
             "title": title,
             "message": message,
           }), { "Content-type": "application/x-www-form-urlencoded" })
@@ -284,10 +306,10 @@ def startQueueScript():
     print('[DETAIL] downloads url', url)
 
     if os.environ['NZBPO_NZBADDED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_ADDED':
-        sendPushNotification(title='NZB added to queue', message=os.environ['NZBNA_NZBNAME'])
+        sendPushNotification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'])
 
     elif os.environ['NZBPO_NZBDOWNLOADED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_DOWNLOADED':
-        sendPushNotification(title='NZB downloaded', message=os.environ['NZBNA_NZBNAME'])
+        sendPushNotification(title='NZB Downloaded', message=os.environ['NZBNA_NZBNAME'])
 
     elif os.environ['NZBPO_NZBDELETED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_DELETED':
         #set failure priority
