@@ -36,58 +36,49 @@
 #
 # Send NZB added notification
 #
+#
 # (queue only)
 #NZBAdded=yes
+
+# Priority of NZB's added queue notification (low, normal, high).
+#
+# Low priority (quiet notification)
+#
+# Normal priority
+#
+# High priority (Sends notification as time sensitive)
+#
+#
+# (queue only)
+#AddedPriority=normal
 
 # Send NZB downloaded notification (yes, no).
 #
 # Send NZB downloaded notification (not need of using post-processing script)
 #
+#
 # (queue only)
 #NZBDownloaded=no
+
+# Priority of NZB downloaded notification (low, normal, high).
+#
+# Low priority (quiet notification)
+#
+# Normal priority
+#
+# High priority (Sends notification as time sensitive)
+#
+#
+# (queue only)
+#DownloadedPriority=normal
 
 # Send NZB deleted notification (yes, no).
 #
 # Send NZB deleted notification.
 #
+#
 # (queue only)
 #NZBDeleted=yes
-
-# Send success notification (yes, no).
-#
-# Send the success notification
-#
-# (post-processing only)
-#NotifySuccess=yes
-
-# Send failure notification (yes, no).
-#
-# Send the failure notification
-#
-# (post-processing only)
-#NotifyFailure=yes
-
-# Priority of success notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (bypasses users quiet times)
-#
-# (post-processing only)
-#SuccessPriority=normal
-
-# Priority of failure notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (bypasses users quiet times)
-#
-# (post-processing only)
-#FailurePriority=normal
 
 # Priority of deleted notification (low, normal, high).
 #
@@ -95,14 +86,56 @@
 #
 # Normal priority
 #
-# High priority (bypasses users quiet times)
+# High priority (Sends notification as time sensitive)
+#
 #
 # (queue only)
 #DeletedPriority=normal
 
+# Send success notification (yes, no).
+#
+# Send the success notification
+#
+#
+# (post-processing only)
+#NotifySuccess=yes
+
+# Priority of success notification (low, normal, high).
+#
+# Low priority (quiet notification)
+#
+# Normal priority
+#
+# High priority (Sends notification as time sensitive)
+#
+#
+# (post-processing only)
+#SuccessPriority=normal
+
+# Send failure notification (yes, no).
+#
+# Send the failure notification
+#
+#
+# (post-processing only)
+#NotifyFailure=yes
+
+# Priority of failure notification (low, normal, high).
+#
+# Low priority (quiet notification)
+#
+# Normal priority
+#
+# High priority (Sends notification as time sensitive)
+#
+#
+# (post-processing only)
+#FailurePriority=normal
+
 # Append Par-Status and Unpack-Status to the message (yes, no).
 #
 # Add the Par and Unpack status.
+#
 #
 # (post-processing only)
 #AppendParUnpack=no
@@ -111,10 +144,13 @@
 #
 # Add the list of downloaded files (the content of destination directory).
 #
+#
 # (post-processing only)
 #FileList=no
 
 # You can test your configuration here.
+#
+# If tests fail, try saving and reloading NZBGet and trying again.
 #TestSettings@Test Push Notifications
 
 ### NZBGET QUEUE/POST-PROCESSING SCRIPT
@@ -190,7 +226,7 @@ def sendPushNotification(title, message, url=None, sound=None, priority=None):
         privateKey = os.environ['NZBPO_PRIVATEKEY']
         message = encrypt_string(message, privateKey)
 
-    print('[DETAIL] Sending Pushover notification')
+    print('[DETAIL] Sending Push notification')
     sys.stdout.flush()
     try:
         conn = http.client.HTTPSConnection("api.nzbclient.app:443")
@@ -217,13 +253,13 @@ def startPostProcessingScript():
     print('[DETAIL] Script starting post-processing...')
 
     if os.environ['NZBPP_TOTALSTATUS'] == 'FAILURE':
-        title = 'Download failed'
+        title = 'Download Failed'
         message = 'Download of "%s" has failed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
     elif os.environ['NZBPP_TOTALSTATUS'] == 'WARNING':
-        title = 'Action needed'
+        title = 'Action Needed'
         message = 'User intervention required for download of "%s": %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
     else:
-        title = 'Download successful'
+        title = 'Download Successful'
         message = 'Download of "%s" has successfully completed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
         success=True
 
@@ -278,15 +314,18 @@ def startPostProcessingScript():
     elif os.environ['NZBPO_NOTIFYFAILURE'] == 'yes' and not success:
         sendMessage = True
 
-    url = 'nzbclient://history'
+    if "NZBPP_NZBID" in os.environ:
+        url = 'nzbclient://history/' + os.environ['NZBPP_NZBID']
+    else:
+        url = 'nzbclient://history'
 
     if sendMessage:
         # Send message
-        print('[DETAIL] Sending Pushover notification')
+        print('[DETAIL] Sending Push notification')
         sendPushNotification(title=title, message=message, url=url, sound=sound, priority=priority)
     else:
         # Send message
-        print('[DETAIL] Skipping Pushover notification')
+        print('[DETAIL] Skipping Push notification')
         sys.stdout.flush()
 
         # All OK, returning exit status 'POSTPROCESS_NONE' (int <95>) to let NZBGet know
@@ -298,20 +337,41 @@ def startQueueScript():
     if os.environ.get('NZBNA_EVENT') not in ['NZB_ADDED', 'NZB_DOWNLOADED', 'NZB_DELETED']:
         sys.exit(0)
 
-    if "NZBNA_NZBID" in os.environ:
-        url = 'nzbclient://downloads/' + os.environ['NZBNA_NZBID']
-    else:
-        url = 'nzbclient://downloads'
-
-    print('[DETAIL] downloads url', url)
-
     if os.environ['NZBPO_NZBADDED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_ADDED':
-        sendPushNotification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'])
+        #set added priority
+        if os.environ['NZBPO_ADDEDPRIORITY'] == 'low':
+            priority = "-1"
+        elif os.environ['NZBPO_ADDEDPRIORITY'] == 'normal':
+            priority = "0"
+        elif os.environ['NZBPO_ADDEDPRIORITY'] == 'high':
+            priority = "1"
+
+        if "NZBNA_NZBID" in os.environ:
+            url = 'nzbclient://downloads/' + os.environ['NZBNA_NZBID']
+        else:
+            url = 'nzbclient://downloads'
+        sendPushNotification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDOWNLOADED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_DOWNLOADED':
-        sendPushNotification(title='NZB Downloaded', message=os.environ['NZBNA_NZBNAME'])
+        #set downloaded priority
+        if os.environ['NZBPO_DOWNLOADEDPRIORITY'] == 'low':
+            priority = "-1"
+        elif os.environ['NZBPO_DOWNLOADEDPRIORITY'] == 'normal':
+            priority = "0"
+        elif os.environ['NZBPO_DOWNLOADEDPRIORITY'] == 'high':
+            priority = "1"
+
+        if "NZBNA_NZBID" in os.environ:
+            url = 'nzbclient://history/' + os.environ['NZBNA_NZBID']
+        else:
+            url = 'nzbclient://history'
+        sendPushNotification(title='NZB Downloaded', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDELETED'] == 'yes' and os.environ['NZBNA_EVENT'] == 'NZB_DELETED':
+        if "NZBNA_NZBID" in os.environ:
+            url = 'nzbclient://history/' + os.environ['NZBNA_NZBID']
+        else:
+            url = 'nzbclient://history'
         #set failure priority
         if os.environ['NZBPO_DELETEDPRIORITY'] == 'low':
             priority = "-1"
@@ -333,14 +393,14 @@ def startQueueScript():
         elif os.environ['NZBNA_DELETESTATUS'] == 'SCAN':
             title = 'NZB Scan Deleted'
 
-        sendPushNotification(title=title, message=os.environ['NZBNA_NZBNAME'], priority=priority)
+        sendPushNotification(title=title, message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
 def testsettings():
     """
     Execute the TestSettings Test Action
     """
     print('[DETAIL] Execute the TestSettings Test Action')
-    sendPushNotification(title='Test Notification', message='Success! Push Notifications are working.')
+    sendPushNotification(title='Test Notification', message='Success! Push Notifications are working.', url='nzbclient://test')
 
 if "NZBNA_EVENT" in os.environ:
     startQueueScript()
