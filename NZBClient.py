@@ -8,26 +8,34 @@
 #
 # This script sends a NZBClient notification when an NZB is added/removed from your queue or the job is finished.
 #
-# Script Version 1.0.0
+# Script Version 1.0.1
 #
 #
-# NOTE: This script requires Python to be installed on your system.
+# NOTE: This script requires Python to be installed on your system and a minimum app version of 2023.3.
 
 ##############################################################################
 ### OPTIONS                                                                ###
 
 # NZBClient user key
+#
+# To find your User Key open NZBClient then Settings tab -> NZBClient Ultra -> Notifications.
+#
 #UserKey=
 
 # Application token/key
+#
+# To find your App Token open NZBClient then Settings tab -> NZBClient Ultra -> Notifications.
+#
 #AppToken=
 
 # Enable Message Encryption (yes, no).
-#
+# 
 # (Optional)
 #EncryptionEnabled=no
 
 # Encryption Private Key
+#
+# Key can be generated in NZBClient Settings tab -> NZBClient Ultra -> Notifications.
 #
 # (Optional)
 #PrivateKey=
@@ -334,6 +342,7 @@ def start_queue_script():
             url = 'nzbclient://downloads?nzbid=' + os.environ['NZBNA_NZBID']
         else:
             url = 'nzbclient://downloads'
+
         send_push_notification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDOWNLOADED'] == 'yes' and nzbna_event == 'NZB_DOWNLOADED':
@@ -345,6 +354,7 @@ def start_queue_script():
             url = 'nzbclient://history?nzbid=' + os.environ['NZBNA_NZBID']
         else:
             url = 'nzbclient://history'
+
         send_push_notification(title='NZB Downloaded', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDELETED'] == 'yes' and nzbna_event == 'NZB_DELETED':
