@@ -1,0 +1,144 @@
+{
+    "main": "main.py",
+    "name": "NZBClientNotifier",
+    "homepage": "https://github.com/handya/nzbclient-script",
+    "kind": "POST-PROCESSING/QUEUE",
+    "displayName": "NZBClient Notifier",
+    "version": "2.0",
+    "author": "Digital Tools Ltd",
+    "license": "GNU",
+    "about": "Official NZBClient Queue/Post-Processing script for sending push notifications.",
+    "queueEvents": "",
+    "requirements": [
+        "This script requires Python 3.8+ to be installed on your system.",
+        "Requires NZBClient version 2023.3 or later.",
+        "An Ultra subscription is required."
+    ],
+    "description": [
+        "This script sends NZBClient notifications when an NZB is added, removed, or completed in your queue.",
+        "Notifications are delivered to the NZBClient app on your iPhone or iPad."
+    ],
+    "options": [
+        {
+            "name": "UserKey",
+            "displayName": "User Key",
+            "value": "",
+            "description": ["Required","NZBClient user key","To find your User Key open NZBClient then Settings tab -> NZBClient Ultra -> Notifications."],
+            "select": []
+        },
+        {
+            "name": "AppToken",
+            "displayName": "App Token",
+            "value": "",
+            "description": ["Required","Application token/key","To find your App Token open NZBClient then Settings tab -> NZBClient Ultra -> Notifications."],
+            "select": []
+        },
+        {
+            "name": "ENCRYPTIONENABLED",
+            "displayName": "EncryptionEnabled",
+            "value": "no",
+            "description": ["Optional","Enable Message Encryption"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "PrivateKey",
+            "displayName": "PrivateKey",
+            "value": "",
+            "description": ["Optional","Encryption Private Key", "Key can be generated in NZBClient Settings tab -> NZBClient Ultra -> Notifications."],
+            "select": []
+        },
+        {
+            "name": "NZBAdded",
+            "displayName": "NZB Added",
+            "value": "yes",
+            "description": ["Queue Only","Send NZB added notification"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "AddedPriority",
+            "displayName": "Added Priority",
+            "value": "normal",
+            "description": ["Queue Only","Low (quiet notification)", "High (Sends notification as time sensitive)"],
+            "select": ["low", "normal", "high"]
+        },
+        {
+            "name": "NZBDownloaded",
+            "displayName": "NZB Downloaded",
+            "value": "no",
+            "description": ["Queue Only","Send NZB downloaded notification (not need of using post-processing script)"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "DownloadedPriority",
+            "displayName": "Downloaded Priority",
+            "value": "normal",
+            "description": ["Queue Only","Low (quiet notification)", "High (Sends notification as time sensitive)"],
+            "select": ["low", "normal", "high"]
+        },
+        {
+            "name": "NZBDeleted",
+            "displayName": "NZB Deleted",
+            "value": "yes",
+            "description": ["Queue Only","Send NZB deleted notification"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "DeletedPriority",
+            "displayName": "Deleted Priority",
+            "value": "normal",
+            "description": ["Queue Only","Low (quiet notification)", "High (Sends notification as time sensitive)"],
+            "select": ["low", "normal", "high"]
+        },
+        {
+            "name": "NotifySuccess",
+            "displayName": "Notify Success",
+            "value": "yes",
+            "description": ["Post-Processing Only", "Send the success notification"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "SuccessPriority",
+            "displayName": "Success Priority",
+            "value": "normal",
+            "description": ["Post-Processing Only","Low (quiet notification)", "High (Sends notification as time sensitive)"],
+            "select": ["low", "normal", "high"]
+        },
+        {
+            "name": "NotifyFailure",
+            "displayName": "Notify Failure",
+            "value": "yes",
+            "description": ["Post-Processing Only", "Send the failure notification"],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "FailurePriority",
+            "displayName": "Failure Priority",
+            "value": "normal",
+            "description": ["Post-Processing Only","Low (quiet notification)", "High (Sends notification as time sensitive)"],
+            "select": ["low", "normal", "high"]
+        },
+        {
+            "name": "AppendParUnpack",
+            "displayName": "Append Par Unpack",
+            "value": "no",
+            "description": ["Post-Processing Only","Append Par-Status and Unpack-Status to the message."],
+            "select": ["yes", "no"]
+        },
+        {
+            "name": "FileList",
+            "displayName": "File List",
+            "value": "no",
+            "description": ["Post-Processing Only","Add the list of downloaded files (the content of destination directory)."],
+            "select": ["yes", "no"]
+        }
+    ],
+    "commands": [
+        {
+            "name": "Test",
+            "action": "Test command",
+            "displayName": "Test",
+            "description": ["Command to test extension"]
+        }
+    ],
+    "taskTime": ""
+}

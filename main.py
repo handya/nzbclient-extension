@@ -1,168 +1,21 @@
-#!/usr/bin/python3
-
-###########################################################################
-### NZBGET QUEUE/POST-PROCESSING SCRIPT
-### QUEUE EVENTS: NZB_ADDED, NZB_DOWNLOADED, NZB_DELETED
-
+#
 # Official NZBClient Queue/Post-Processing script for sending push notifications.
 #
-# This script sends a NZBClient notification when an NZB is added/removed from your queue or the job is finished.
+# Copyright (C) 2025 Digital Tools Ltd <andrew@digitaltools.nz>
 #
-# Script Version 1.0.1
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-# NOTE: This script requires Python to be installed on your system and a minimum app version of 2023.3.
-
-##############################################################################
-### OPTIONS                                                                ###
-
-# NZBClient user key
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# To find your User Key open NZBClient then Settings tab -> NZBClient Ultra -> Notifications.
-#
-#UserKey=
-
-# Application token/key
-#
-# To find your App Token open NZBClient then Settings tab -> NZBClient Ultra -> Notifications.
-#
-#AppToken=
-
-# Enable Message Encryption (yes, no).
-# 
-# (Optional)
-#EncryptionEnabled=no
-
-# Encryption Private Key
-#
-# Key can be generated in NZBClient Settings tab -> NZBClient Ultra -> Notifications.
-#
-# (Optional)
-#PrivateKey=
-
-# Send NZB added notification (yes, no).
-#
-# Send NZB added notification
-#
-#
-# (queue only)
-#NZBAdded=yes
-
-# Priority of NZB's added queue notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (Sends notification as time sensitive)
-#
-#
-# (queue only)
-#AddedPriority=normal
-
-# Send NZB downloaded notification (yes, no).
-#
-# Send NZB downloaded notification (not need of using post-processing script)
-#
-#
-# (queue only)
-#NZBDownloaded=no
-
-# Priority of NZB downloaded notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (Sends notification as time sensitive)
-#
-#
-# (queue only)
-#DownloadedPriority=normal
-
-# Send NZB deleted notification (yes, no).
-#
-# Send NZB deleted notification.
-#
-#
-# (queue only)
-#NZBDeleted=yes
-
-# Priority of deleted notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (Sends notification as time sensitive)
-#
-#
-# (queue only)
-#DeletedPriority=normal
-
-# Send success notification (yes, no).
-#
-# Send the success notification
-#
-#
-# (post-processing only)
-#NotifySuccess=yes
-
-# Priority of success notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (Sends notification as time sensitive)
-#
-#
-# (post-processing only)
-#SuccessPriority=normal
-
-# Send failure notification (yes, no).
-#
-# Send the failure notification
-#
-#
-# (post-processing only)
-#NotifyFailure=yes
-
-# Priority of failure notification (low, normal, high).
-#
-# Low priority (quiet notification)
-#
-# Normal priority
-#
-# High priority (Sends notification as time sensitive)
-#
-#
-# (post-processing only)
-#FailurePriority=normal
-
-# Append Par-Status and Unpack-Status to the message (yes, no).
-#
-# Add the Par and Unpack status.
-#
-#
-# (post-processing only)
-#AppendParUnpack=no
-
-# Append list of files to the message (yes, no).
-#
-# Add the list of downloaded files (the content of destination directory).
-#
-#
-# (post-processing only)
-#FileList=no
-
-# You can test your configuration here.
-#
-# If tests fail, try saving and reloading NZBGet and trying again.
-#TestSettings@Test Push Notifications
-
-### NZBGET QUEUE/POST-PROCESSING SCRIPT
-###########################################################################
 
 import os
 import sys
@@ -191,7 +44,6 @@ sys.stdout.flush()
 
 user_key = os.environ['NZBPO_USERKEY']
 app_token = os.environ['NZBPO_APPTOKEN']
-device = ''  # os.environ['NZBPO_DEVICE'] (commented out, not used)
 command = os.environ.get('NZBCP_COMMAND')
 
 if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
@@ -214,12 +66,10 @@ success = False
 def encrypt_string(plaintext, password):
     return Fernet(password).encrypt(plaintext.encode())
 
-def send_push_notification(title, message, url=None, sound=None, priority=None):
+def send_push_notification(title, message, url=None, priority=None):
     # Check if a parameter is None (not provided) and assign a default value if needed
     if url is None:
         url = ""
-    if sound is None:
-        sound = ""
     if priority is None:
         priority = "0"
 
@@ -236,26 +86,30 @@ def send_push_notification(title, message, url=None, sound=None, priority=None):
 
     sys.stdout.flush()
     try:
+        body = urllib.parse.urlencode({
+            "token": app_token,
+            "user": user_key,
+            "url": url,
+            "priority": priority,
+            "isEncrypted": is_encrypted,
+            "title": title,
+            "message": message,
+        })
+
         conn = http.client.HTTPSConnection("api.nzbclient.app:443")
-        conn.request("POST", "/1/messages.json",
-                     urllib.parse.urlencode({
-                         "token": app_token,
-                         "user": user_key,
-                         "device": device,
-                         "url": url,
-                         "sound": sound,
-                         "priority": priority,
-                         "isEncrypted": is_encrypted,
-                         "title": title,
-                         "message": message,
-                     }), {"Content-type": "application/x-www-form-urlencoded"})
+        conn.request("POST", "/1/messages.json", body, {"Content-type": "application/x-www-form-urlencoded"})
         conn.getresponse()
+
+        print('[DETAIL] Sent Push notification')
+
         sys.exit(POSTPROCESS_SUCCESS)
     except Exception as err:
         print('[ERROR] %s' % err)
         sys.exit(POSTPROCESS_ERROR)
 
 def start_post_processing_script():
+    global success
+    
     print('[DETAIL] Script starting post-processing...')
 
     if os.environ['NZBPP_TOTALSTATUS'] == 'FAILURE':
@@ -268,14 +122,6 @@ def start_post_processing_script():
         title = 'Download Successful'
         message = 'Download of "%s" has successfully completed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
         success = True
-
-    # Set requested success or failure sound
-    if not success and 'NZBPO_FAILURESOUND' in os.environ:
-        sound = os.environ['NZBPO_FAILURESOUND']
-    elif success and 'NZBPO_SUCCESSSOUND' in os.environ:
-        sound = os.environ['NZBPO_SUCCESSSOUND']
-    else:
-        sound = ""
 
     # Set success priority
     success_priority_map = {'low': "-1", 'normal': "0", 'high': "1"}
@@ -316,8 +162,7 @@ def start_post_processing_script():
 
     if send_message:
         # Send message
-        print('[DETAIL] Sending Push notification')
-        send_push_notification(title=title, message=message, url=url, sound=sound, priority=priority)
+        send_push_notification(title=title, message=message, url=url, priority=priority)
     else:
         # Send message
         print('[DETAIL] Skipping Push notification')
@@ -346,7 +191,7 @@ def start_queue_script():
         send_push_notification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDOWNLOADED'] == 'yes' and nzbna_event == 'NZB_DOWNLOADED':
-        # Set downloaded priority
+         # Set downloaded priority
         downloaded_priority_map = {'low': "-1", 'normal': "0", 'high': "1"}
         priority = downloaded_priority_map.get(os.environ['NZBPO_DOWNLOADEDPRIORITY'], "0")
 
@@ -389,5 +234,5 @@ if "NZBNA_EVENT" in os.environ:
     start_queue_script()
 elif "NZBPP_TOTALSTATUS" in os.environ:
     start_post_processing_script()
-elif command == 'TestSettings':
+elif command == 'Test':
     test_settings()
