@@ -230,7 +230,12 @@ def start_queue_script():
 
 def test_settings():
     print('[DETAIL] Execute the TestSettings Test Action')
-    send_push_notification(title='Test Notification', message='Success! Push Notifications are working.', url='nzbclient://test')
+    send_push_notification(
+        title='Test Notification',
+        message='Success! Push Notifications are working.',
+        url='nzbclient://test'
+    )
+
 
 if "NZBNA_EVENT" in os.environ:
     start_queue_script()
