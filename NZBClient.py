@@ -8,7 +8,7 @@
 #
 # This script sends a NZBClient notification when an NZB is added/removed from your queue or the job is finished.
 #
-# Script Version 1.0.1
+# Script Version 1.0.2
 #
 #
 # NOTE: This script requires Python to be installed on your system and a minimum app version of 2023.3.
@@ -191,7 +191,6 @@ sys.stdout.flush()
 
 user_key = os.environ['NZBPO_USERKEY']
 app_token = os.environ['NZBPO_APPTOKEN']
-device = ''  # os.environ['NZBPO_DEVICE'] (commented out, not used)
 command = os.environ.get('NZBCP_COMMAND')
 
 if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
@@ -214,12 +213,10 @@ success = False
 def encrypt_string(plaintext, password):
     return Fernet(password).encrypt(plaintext.encode())
 
-def send_push_notification(title, message, url=None, sound=None, priority=None):
+def send_push_notification(title, message, url=None, priority=None):
     # Check if a parameter is None (not provided) and assign a default value if needed
     if url is None:
         url = ""
-    if sound is None:
-        sound = ""
     if priority is None:
         priority = "0"
 
@@ -241,9 +238,7 @@ def send_push_notification(title, message, url=None, sound=None, priority=None):
                      urllib.parse.urlencode({
                          "token": app_token,
                          "user": user_key,
-                         "device": device,
                          "url": url,
-                         "sound": sound,
                          "priority": priority,
                          "isEncrypted": is_encrypted,
                          "title": title,
@@ -256,6 +251,8 @@ def send_push_notification(title, message, url=None, sound=None, priority=None):
         sys.exit(POSTPROCESS_ERROR)
 
 def start_post_processing_script():
+    global success
+    
     print('[DETAIL] Script starting post-processing...')
 
     if os.environ['NZBPP_TOTALSTATUS'] == 'FAILURE':
@@ -268,14 +265,6 @@ def start_post_processing_script():
         title = 'Download Successful'
         message = 'Download of "%s" has successfully completed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
         success = True
-
-    # Set requested success or failure sound
-    if not success and 'NZBPO_FAILURESOUND' in os.environ:
-        sound = os.environ['NZBPO_FAILURESOUND']
-    elif success and 'NZBPO_SUCCESSSOUND' in os.environ:
-        sound = os.environ['NZBPO_SUCCESSSOUND']
-    else:
-        sound = ""
 
     # Set success priority
     success_priority_map = {'low': "-1", 'normal': "0", 'high': "1"}
@@ -317,7 +306,7 @@ def start_post_processing_script():
     if send_message:
         # Send message
         print('[DETAIL] Sending Push notification')
-        send_push_notification(title=title, message=message, url=url, sound=sound, priority=priority)
+        send_push_notification(title=title, message=message, url=url, priority=priority)
     else:
         # Send message
         print('[DETAIL] Skipping Push notification')
