@@ -22,6 +22,14 @@ import sys
 import http.client
 import urllib
 
+try:
+    from cryptography.fernet import Fernet
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    Fernet = None
+    CRYPTO_AVAILABLE = False
+
+
 # Exit codes used by NZBGet
 POSTPROCESS_SUCCESS = 93
 POSTPROCESS_ERROR = 94
@@ -36,7 +44,7 @@ if 'NZBOP_SCRIPTDIR' not in os.environ:
 required_options = ('NZBPO_USERKEY', 'NZBPO_APPTOKEN')
 for opt_name in required_options:
     if opt_name not in os.environ:
-        print('[ERROR] Option %s is missing in the configuration file. Please check script settings.' % opt_name[6:])
+        print(f'[ERROR] Option {opt_name[6:]} is missing in the configuration file. Please check script settings.')
         sys.exit(POSTPROCESS_ERROR)
 
 print('[DETAIL] Script successfully started')
@@ -45,9 +53,6 @@ sys.stdout.flush()
 user_key = os.environ['NZBPO_USERKEY']
 app_token = os.environ['NZBPO_APPTOKEN']
 command = os.environ.get('NZBCP_COMMAND')
-
-if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
-    from cryptography.fernet import Fernet
 
 # Check PAR and unpack status for errors and set message
 # - NZBPP_PARSTATUS:
@@ -77,7 +82,7 @@ def send_push_notification(title, message, url=None, priority=None):
 
     is_encrypted = False
 
-    if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
+    if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None and CRYPTO_AVAILABLE:
         private_key = os.environ['NZBPO_PRIVATEKEY']
         message = encrypt_string(message, private_key)
         is_encrypted = True
@@ -104,7 +109,7 @@ def send_push_notification(title, message, url=None, priority=None):
 
         sys.exit(POSTPROCESS_SUCCESS)
     except Exception as err:
-        print('[ERROR] %s' % err)
+        print(f'[ERROR] {err}')
         sys.exit(POSTPROCESS_ERROR)
 
 def start_post_processing_script():
@@ -114,13 +119,13 @@ def start_post_processing_script():
 
     if os.environ['NZBPP_TOTALSTATUS'] == 'FAILURE':
         title = 'Download Failed'
-        message = 'Download of "%s" has failed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
+        message = f'Download of "{os.environ["NZBPP_NZBNAME"]}" has failed: {os.environ["NZBPP_STATUS"]}'
     elif os.environ['NZBPP_TOTALSTATUS'] == 'WARNING':
         title = 'Action Needed'
-        message = 'User intervention required for download of "%s": %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
+        message = f'User intervention required for download of "{os.environ["NZBPP_NZBNAME"]}": {os.environ["NZBPP_STATUS"]}'
     else:
         title = 'Download Successful'
-        message = 'Download of "%s" has successfully completed: %s' % (os.environ['NZBPP_NZBNAME'], os.environ['NZBPP_STATUS'])
+        message = f'Download of "{os.environ["NZBPP_NZBNAME"]}" has successfully completed: {os.environ["NZBPP_STATUS"]}'
         success = True
 
     # Set success priority
@@ -137,15 +142,15 @@ def start_post_processing_script():
     # Add par and unpack status to the message
     if os.environ['NZBPO_APPENDPARUNPACK'] == 'yes':
         par_status = { '0': 'skipped', '1': 'failed', '2': 'repaired', '3': 'repairable', '4': 'manual' }
-        message += '\nPar-Status: %s' % par_status[os.environ['NZBPP_PARSTATUS']]
+        message += f'\nPar-Status: {par_status[os.environ["NZBPP_PARSTATUS"]]}'
 
         unpack_status = { '0': 'skipped', '1': 'failed', '2': 'success' }
-        message += '\nUnpack-Status: %s' % unpack_status[os.environ['NZBPP_UNPACKSTATUS']]
+        message += f'\nUnpack-Status: {unpack_status[os.environ["NZBPP_UNPACKSTATUS"]]}'
 
     # Add a list of downloaded files to the message
     if os.environ['NZBPO_FILELIST'] == 'yes':
         message += '\n\nFiles:'
-        for dirname, dirnames, filenames in os.walk(os.environ['NZBPP_DIRECTORY']):
+        for dirname, _, filenames in os.walk(os.environ['NZBPP_DIRECTORY']):
             for filename in filenames:
                 message += '\n' + os.path.join(dirname, filename)[len(os.environ['NZBPP_DIRECTORY']) + 1:]
 
@@ -191,7 +196,7 @@ def start_queue_script():
         send_push_notification(title='NZB Added To Queue', message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
     elif os.environ['NZBPO_NZBDOWNLOADED'] == 'yes' and nzbna_event == 'NZB_DOWNLOADED':
-         # Set downloaded priority
+        # Set downloaded priority
         downloaded_priority_map = {'low': "-1", 'normal': "0", 'high': "1"}
         priority = downloaded_priority_map.get(os.environ['NZBPO_DOWNLOADEDPRIORITY'], "0")
 
@@ -224,9 +229,6 @@ def start_queue_script():
         send_push_notification(title=title, message=os.environ['NZBNA_NZBNAME'], url=url, priority=priority)
 
 def test_settings():
-    """
-    Execute the TestSettings Test Action
-    """
     print('[DETAIL] Execute the TestSettings Test Action')
     send_push_notification(title='Test Notification', message='Success! Push Notifications are working.', url='nzbclient://test')
 
