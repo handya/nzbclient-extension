@@ -99,6 +99,7 @@ def send_push_notification(title, message, url=None, priority=None):
             "isEncrypted": is_encrypted,
             "title": title,
             "message": message,
+            "app": "nzbclient",
         })
 
         conn = http.client.HTTPSConnection("api.nzbclient.app:443")
