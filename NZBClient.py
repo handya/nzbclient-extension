@@ -8,7 +8,7 @@
 #
 # This script sends a NZBClient notification when an NZB is added/removed from your queue or the job is finished.
 #
-# Script Version 1.0.3
+# Script Version 1.1.0
 #
 #
 # NOTE: This script requires Python to be installed on your system and a minimum app version of 2023.3.
@@ -229,6 +229,8 @@ def send_push_notification(title, message, url=None, priority=None):
         message = encrypt_string(message, private_key)
         is_encrypted = True
 
+    nzb_id = os.environ.get("NZBNA_NZBID") or os.environ.get("NZBPP_NZBID") or ""
+
     print('[DETAIL] Sending Push notification')
 
     sys.stdout.flush()
@@ -244,6 +246,7 @@ def send_push_notification(title, message, url=None, priority=None):
                          "title": title,
                          "message": message,
                          "app": "nzbget",
+                         "nzbID": nzb_id,
                      }), {"Content-type": "application/x-www-form-urlencoded"})
         conn.getresponse()
         sys.exit(POSTPROCESS_SUCCESS)
