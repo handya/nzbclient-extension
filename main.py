@@ -87,6 +87,8 @@ def send_push_notification(title, message, url=None, priority=None):
         message = encrypt_string(message, private_key)
         is_encrypted = True
 
+    nzb_id = os.environ.get("NZBNA_NZBID") or os.environ.get("NZBPP_NZBID") or ""
+
     print('[DETAIL] Sending Push notification')
 
     sys.stdout.flush()
@@ -100,6 +102,7 @@ def send_push_notification(title, message, url=None, priority=None):
             "title": title,
             "message": message,
             "app": "nzbget",
+            "nzbID": nzb_id,
         })
 
         conn = http.client.HTTPSConnection("api.nzbclient.app:443")

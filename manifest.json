@@ -4,7 +4,7 @@
     "homepage": "https://github.com/handya/nzbclient-script",
     "kind": "POST-PROCESSING/QUEUE",
     "displayName": "NZBClient Notifier",
-    "version": "2.0.2",
+    "version": "2.1.0",
     "author": "Digital Tools Ltd",
     "license": "GNU",
     "about": "Official NZBClient Queue/Post-Processing script for sending push notifications.",
