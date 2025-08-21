@@ -8,7 +8,7 @@
 #
 # This script sends a NZBClient notification when an NZB is added/removed from your queue or the job is finished.
 #
-# Script Version 1.1.0
+# Script Version 1.2.0
 #
 #
 # NOTE: This script requires Python to be installed on your system and a minimum app version of 2023.3.
@@ -28,10 +28,14 @@
 #
 #AppToken=
 
-# Enable Message Encryption (yes, no).
+# Message Body Encryption (disabled, fernet, aes256).
 # 
 # (Optional)
-#EncryptionEnabled=no
+#
+# Use Fernet by default unless Python Fernet is unavailable then use AES256
+# Private Key is required if either of these settings are enabled (can be generated in-app).
+#
+#Encryption=disabled
 
 # Encryption Private Key
 #
@@ -168,11 +172,33 @@ import os
 import sys
 import http.client
 import urllib
+import platform
+import subprocess, base64
 
 # Exit codes used by NZBGet
 POSTPROCESS_SUCCESS = 93
 POSTPROCESS_ERROR = 94
 POSTPROCESS_NONE = 95
+
+class OpenSSLError(RuntimeError): pass
+
+_ARGS = ["enc", "-aes-256-cbc", "-salt", "-pbkdf2", "-iter", "250000", "-md", "sha256"]
+
+def _run(cmd: list[str], data: bytes) -> bytes:
+    p = subprocess.run(cmd, input=data, capture_output=True)
+    if p.returncode != 0:
+        raise OpenSSLError(
+            f"OpenSSL failed (code {p.returncode}).\n"
+            f"Command: {' '.join(cmd)}\n"
+            f"stderr: {p.stderr.decode('utf-8', 'replace')}"
+        )
+    return p.stdout
+
+def encrypt_with_openssl(plaintext: str, password: str) -> str:
+    """Encrypt UTF-8 text; returns Base64(OpenSSL 'enc' output)."""
+    pt = plaintext.encode("utf-8")
+    ct = _run(["openssl", *_ARGS, "-pass", f"pass:{password}"], pt)
+    return base64.b64encode(ct).decode("ascii")
 
 # Check if the script is called from NZBGet 11.0 or later
 if 'NZBOP_SCRIPTDIR' not in os.environ:
@@ -193,8 +219,9 @@ user_key = os.environ['NZBPO_USERKEY']
 app_token = os.environ['NZBPO_APPTOKEN']
 command = os.environ.get('NZBCP_COMMAND')
 
-if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
-    from cryptography.fernet import Fernet
+if os.environ['NZBPO_ENCRYPTION'] != 'disabled' and os.environ['NZBPO_PRIVATEKEY'] is not None:
+    if os.environ['NZBPO_ENCRYPTION'] == 'fernet':
+        from cryptography.fernet import Fernet
 
 # Check PAR and unpack status for errors and set message
 # - NZBPP_PARSTATUS:
@@ -210,8 +237,22 @@ if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEK
 #   2 = unpack successful
 success = False
 
-def encrypt_string(plaintext, password):
-    return Fernet(password).encrypt(plaintext.encode())
+def encrypt_string(plaintext: str, password: str) -> tuple[str, str]:
+    mode = os.environ.get("NZBPO_ENCRYPTION", "").lower()
+
+    if mode == "fernet":
+        encryption_type = "fernet"
+        token = Fernet(password).encrypt(plaintext.encode())
+        return token.decode(), encryption_type
+
+    elif mode == "aes256":
+        encryption_type = "aes256CBC"
+        token = encrypt_with_openssl(plaintext, password)
+        return token, encryption_type
+
+    else:
+        raise ValueError(f"Unknown encryption mode: {mode}")
+
 
 def send_push_notification(title, message, url=None, priority=None):
     # Check if a parameter is None (not provided) and assign a default value if needed
@@ -223,15 +264,18 @@ def send_push_notification(title, message, url=None, priority=None):
     message = message.replace(".", " ")
 
     is_encrypted = False
+    encryption_type = None
 
-    if os.environ['NZBPO_ENCRYPTIONENABLED'] == 'yes' and os.environ['NZBPO_PRIVATEKEY'] is not None:
+    if os.environ['NZBPO_ENCRYPTION'] != 'disabled' and os.environ['NZBPO_PRIVATEKEY'] is not None:
         private_key = os.environ['NZBPO_PRIVATEKEY']
-        message = encrypt_string(message, private_key)
+        message, encryption_type = encrypt_string(message, private_key)
         is_encrypted = True
 
     nzb_id = os.environ.get("NZBNA_NZBID") or os.environ.get("NZBPP_NZBID") or ""
 
     print('[DETAIL] Sending Push notification')
+
+    print('[TEST] isEncrypted:', is_encrypted, encryption_type, message)
 
     sys.stdout.flush()
     try:
@@ -243,6 +287,7 @@ def send_push_notification(title, message, url=None, priority=None):
                          "url": url,
                          "priority": priority,
                          "isEncrypted": is_encrypted,
+                         "encryptionType": encryption_type,
                          "title": title,
                          "message": message,
                          "app": "nzbget",
@@ -376,6 +421,17 @@ def test_settings():
     Execute the TestSettings Test Action
     """
     print('[DETAIL] Execute the TestSettings Test Action')
+    
+    # Print Python version
+    print("[TEST] Python version:", platform.python_version())
+
+    # Check if Fernet is installed
+    try:
+        from cryptography.fernet import Fernet
+        print("[TEST] Fernet is installed ✅")
+    except ImportError:
+        print("[TEST] Fernet is NOT installed ❌ (install with: pip install cryptography)")
+    
     send_push_notification(title='Test Notification', message='Success! Push Notifications are working.', url='nzbclient://test')
 
 if "NZBNA_EVENT" in os.environ:
