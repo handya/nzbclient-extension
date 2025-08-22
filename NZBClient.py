@@ -32,7 +32,7 @@
 # 
 # (Optional)
 #
-# Use Fernet by default unless Python Fernet is unavailable then use AES256
+# Use Fernet by default unless Python Fernet is unavailable then use AES256 (OpenSSL must be installed)
 # Private Key is required if either of these settings are enabled (can be generated in-app).
 #
 #Encryption=disabled
